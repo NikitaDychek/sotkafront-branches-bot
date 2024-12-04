@@ -5,87 +5,52 @@ import { config } from 'dotenv'
 import express from 'express'
 import { GoogleSpreadsheet } from 'google-spreadsheet'
 import { JWT } from 'google-auth-library';
+import * as bodyParser from "express";
 
-config()
 const app = express()
 
-const JOKE_API = 'https://v2.jokeapi.dev/joke/Programming?type=single'
-const TELEGRAM_URI = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`
-
-app.use(express.json())
+app.use(bodyParser.json()) // for parsing application/json
 app.use(
-    express.urlencoded({
-        extended: true
+    bodyParser.urlencoded({
+        extended: true,
     })
-)
+) // for parsing application/x-www-form-urlencoded
 
-const serviceAccountAuth = new JWT({
-    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY,
-    scopes: [
-        'https://www.googleapis.com/auth/spreadsheets',
-    ],
-});
-
-const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
-
-app.post('/new-message', async (req, res) => {
+//This is the route the API will call
+app.post("/new-message", function(req, res) {
     const { message } = req.body
-    const messageText = message?.text?.toLowerCase()?.trim()
-    const chatId = message?.chat?.id
-    if (!messageText || !chatId) {
-        return res.sendStatus(400)
-    }
-    // local json
-    // const dataFromJson = fs.readJSONSync(join(process.cwd(), 'todos.json'))
-    // google spreadsheet
-    await doc.loadInfo()
-    const sheet = doc.sheetsByIndex[0]
-    const rows = await sheet.getRows()
-    const dataFromSpreadsheet = rows.reduce((obj, row) => {
-        if (row.track_name) {
-            const todo = { text: row.text, done: row.done }
-            obj[row.date] = obj[row.date] ? [...obj[row.date], todo] : [todo]
-        }
-        return obj
-    }, {})
 
-    let responseText = 'I have nothing to say.'
-    // generate responseText
-    if (messageText === 'joke') {
-        try {
-            const response = await axios(JOKE_API)
-            responseText = response.data.joke
-        } catch (e) {
-            console.log(e)
-            res.send(e)
-        }
-    } else if (/\d\d\.\d\d/.test(messageText)) {
-        // responseText = dataFromJson[messageText] || 'You have nothing to do on this day.'
-        responseText =
-            dataFromSpreadsheet[messageText] || 'You have nothing to do on this day.'
+    //Each message contains "text" and a "chat" object, which has an "id" which is the chat id
+
+    if (!message || message.text.toLowerCase().indexOf("marco") < 0) {
+        // In case a message is not present, or if our message does not have the word marco in it, do nothing and return an empty response
+        return res.end()
     }
 
-    // send response
-    try {
-        await axios.post(TELEGRAM_URI, {
-            chat_id: chatId,
-            text: responseText
+    // If we've gotten this far, it means that we have received a message containing the word "marco".
+    // Respond by hitting the telegram bot API and responding to the appropriate chat_id with the word "Polo!!"
+    // Remember to use your own API toked instead of the one below  "https://api.telegram.org/bot<your_api_token>/sendMessage"
+    axios
+        .post(
+            "https://api.telegram.org/bot777845702:AAFdPS_taJ3pTecEFv2jXkmbQfeOqVZGER/sendMessage",
+            {
+                chat_id: message.chat.id,
+                text: "Polo!!",
+            }
+        )
+        .then((response) => {
+            // We get here if the message was successfully posted
+            console.log("Message posted")
+            res.end("ok")
         })
-        res.send('Done')
-    } catch (e) {
-        console.log(e)
-        res.send(e)
-    }
+        .catch((err) => {
+            // ...and here if it was not
+            console.log("Error :", err)
+            res.end("Error :" + err)
+        })
 })
 
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
+// Finally, start our server
+app.listen(3000, function() {
+    console.log("Telegram app listening on port 3000!")
 })
-function exitHandler(options, exitCode) {
-    if (options.cleanup) console.log('clean');
-    if (exitCode || exitCode === 0) console.log(exitCode);
-    if (options.exit) process.exit();
-}
-process.on('exit', exitHandler.bind(null,{cleanup:true}));
