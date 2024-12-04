@@ -4,22 +4,22 @@
   "description": "Telegram bot to share the numbered branches to users",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node serve.js",
-    "dev": "nodemon serve.js",
-    "build": "npm run build"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "Nikita Dycheck",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.9",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.1",
     "fs-extra": "^11.2.0",
     "google-auth-library": "^9.15.0",
     "google-spreadsheet": "^4.1.4",
     "nodemon": "^3.1.7",
+    "now": "^21.0.1",
     "telegraf": "^4.16.3"
   },
   "type": "module",
