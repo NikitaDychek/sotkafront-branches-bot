@@ -28,65 +28,65 @@ const serviceAccountAuth = new JWT({
 });
 
 const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
-
-app.post('/new-message', async (req, res) => {
-    const { message } = req.body
-    const messageText = message?.text?.toLowerCase()?.trim()
-    const chatId = message?.chat?.id
-    if (!messageText || !chatId) {
-        return res.sendStatus(400)
-    }
-    console.log(message)
-    // local json
-    // const dataFromJson = fs.readJSONSync(join(process.cwd(), 'todos.json'))
-    // google spreadsheet
-    await doc.loadInfo()
-    const sheet = doc.sheetsByIndex[0]
-    const rows = await sheet.getRows()
-    const dataFromSpreadsheet = rows.reduce((obj, row) => {
-        if (row.track_name) {
-            const todo = { text: row.text, done: row.done }
-            obj[row.date] = obj[row.date] ? [...obj[row.date], todo] : [todo]
-        }
-        return obj
-    }, {})
-
-    let responseText = 'I have nothing to say.'
-    // generate responseText
-    if (messageText === 'joke') {
-        try {
-            const response = await axios(JOKE_API)
-            responseText = response.data.joke
-        } catch (e) {
-            console.log(e)
-            res.send(e)
-        }
-    } else if (/\d\d\.\d\d/.test(messageText)) {
-        // responseText = dataFromJson[messageText] || 'You have nothing to do on this day.'
-        responseText =
-            dataFromSpreadsheet[messageText] || 'You have nothing to do on this day.'
-    }
-
-    // send response
-    try {
-        await axios.post(TELEGRAM_URI, {
-            chat_id: chatId,
-            text: responseText
-        })
-        res.send('Done')
-    } catch (e) {
-        console.log(e)
-        res.send(e)
-    }
-})
-
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-})
-function exitHandler(options, exitCode) {
-    if (options.cleanup) console.log('clean');
-    if (exitCode || exitCode === 0) console.log(exitCode);
-    if (options.exit) process.exit();
-}
+//
+// app.post('/new-message', async (req, res) => {
+//     const { message } = req.body
+//     const messageText = message?.text?.toLowerCase()?.trim()
+//     const chatId = message?.chat?.id
+//     if (!messageText || !chatId) {
+//         return res.sendStatus(400)
+//     }
+//     console.log(message)
+//     // local json
+//     // const dataFromJson = fs.readJSONSync(join(process.cwd(), 'todos.json'))
+//     // google spreadsheet
+//     await doc.loadInfo()
+//     const sheet = doc.sheetsByIndex[0]
+//     const rows = await sheet.getRows()
+//     const dataFromSpreadsheet = rows.reduce((obj, row) => {
+//         if (row.track_name) {
+//             const todo = { text: row.text, done: row.done }
+//             obj[row.date] = obj[row.date] ? [...obj[row.date], todo] : [todo]
+//         }
+//         return obj
+//     }, {})
+//
+//     let responseText = 'I have nothing to say.'
+//     // generate responseText
+//     if (messageText === 'joke') {
+//         try {
+//             const response = await axios(JOKE_API)
+//             responseText = response.data.joke
+//         } catch (e) {
+//             console.log(e)
+//             res.send(e)
+//         }
+//     } else if (/\d\d\.\d\d/.test(messageText)) {
+//         // responseText = dataFromJson[messageText] || 'You have nothing to do on this day.'
+//         responseText =
+//             dataFromSpreadsheet[messageText] || 'You have nothing to do on this day.'
+//     }
+//
+//     // send response
+//     try {
+//         await axios.post(TELEGRAM_URI, {
+//             chat_id: chatId,
+//             text: responseText
+//         })
+//         res.send('Done')
+//     } catch (e) {
+//         console.log(e)
+//         res.send(e)
+//     }
+// })
+//
+// const PORT = process.env.PORT || 3000
+// app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`)
+// })
+// function exitHandler(options, exitCode) {
+//     if (options.cleanup) console.log('clean');
+//     if (exitCode || exitCode === 0) console.log(exitCode);
+//     if (options.exit) process.exit();
+// }
 process.on('exit', exitHandler.bind(null,{cleanup:true}));
