@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node serve.js",
     "dev": "nodemon serve.js",
-    "build": ""
+    "build": "npm run build"
   },
   "keywords": [],
   "author": "Nikita Dycheck",
