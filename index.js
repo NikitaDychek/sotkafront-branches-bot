@@ -1,52 +1,92 @@
-const env = require('dotenv');
-env.config();
-const { Telegraf } = require('telegraf')
-const bot = new Telegraf(process.env.BOT_TOKEN)
-const commands = [
-    {
-        command: "start",
-        description: "Запуск бота"
-    },
-    {
+import axios from 'axios'
+// import fs from 'fs-extra'
+// import { join } from 'path'
+import { config } from 'dotenv'
+import express from 'express'
+import { GoogleSpreadsheet } from 'google-spreadsheet'
+import { JWT } from 'google-auth-library';
 
-        command: "help",
-        description: "Раздел помощи"
-    },
-]
+config()
+const app = express()
 
-bot.start((ctx) => ctx.reply('Welcome!'))
-bot.help((ctx) => ctx.reply('Для того чтобы получить номер своей ветки, просто введи в сообщении краткое описание своей задачи'))
-bot.launch()
-// const bot = new TelegramBot(API_KEY, {
-//     polling: {
-//         interval: 300,
-//         autoStart: true
-//     }
-// })
-//
-// bot.setMyCommands(commands);
-//
-// bot.on("polling_error", err => console.log(err.data.error.message));
-// bot.on('text', async msg => {
-//     try {
-//         switch (msg.text) {
-//             case '/start':
-//                 return await bot.sendMessage(msg.chat.id, `Привет, ${msg.from.first_name} ${msg.from.last_name}!`);
-//             case '/help':
-//                 return await bot.sendMessage(msg.chat.id, `Для того чтобы получить номер своей ветки, просто введи в сообщении краткое описание своей задачи`);
-//             // case '/menu':
-//             //     return await bot.sendMessage(msg.chat.id, `Меню бота`, {
-//             //         reply_markup: {
-//             //             keyboard: [
-//             //                 ['⭐️ Картинка', '⭐️ Видео'],
-//             //                 ['⭐️ Аудио', '⭐️ Голосовое сообщение']
-//             //             ]
-//             //         }
-//             //     })
-//             default:
-//                return await bot.sendMessage(msg.chat.id, `Привет, ${msg.from.first_name} ${msg.from.last_name}!`);
-//         }
-//     } catch (error) {
-//         console.log(error);
-//     }
-// })
+const JOKE_API = 'https://v2.jokeapi.dev/joke/Programming?type=single'
+const TELEGRAM_URI = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`
+
+app.use(express.json())
+app.use(
+    express.urlencoded({
+        extended: true
+    })
+)
+
+const serviceAccountAuth = new JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY,
+    scopes: [
+        'https://www.googleapis.com/auth/spreadsheets',
+    ],
+});
+
+const doc = new GoogleSpreadsheet(process.env.GOOGLE_SPREADSHEET_ID, serviceAccountAuth);
+
+app.post('/new-message', async (req, res) => {
+    const { message } = req.body
+    const messageText = message?.text?.toLowerCase()?.trim()
+    const chatId = message?.chat?.id
+    if (!messageText || !chatId) {
+        return res.sendStatus(400)
+    }
+    console.log(message)
+    // local json
+    // const dataFromJson = fs.readJSONSync(join(process.cwd(), 'todos.json'))
+    // google spreadsheet
+    await doc.loadInfo()
+    const sheet = doc.sheetsByIndex[0]
+    const rows = await sheet.getRows()
+    const dataFromSpreadsheet = rows.reduce((obj, row) => {
+        if (row.track_name) {
+            const todo = { text: row.text, done: row.done }
+            obj[row.date] = obj[row.date] ? [...obj[row.date], todo] : [todo]
+        }
+        return obj
+    }, {})
+
+    let responseText = 'I have nothing to say.'
+    // generate responseText
+    if (messageText === 'joke') {
+        try {
+            const response = await axios(JOKE_API)
+            responseText = response.data.joke
+        } catch (e) {
+            console.log(e)
+            res.send(e)
+        }
+    } else if (/\d\d\.\d\d/.test(messageText)) {
+        // responseText = dataFromJson[messageText] || 'You have nothing to do on this day.'
+        responseText =
+            dataFromSpreadsheet[messageText] || 'You have nothing to do on this day.'
+    }
+
+    // send response
+    try {
+        await axios.post(TELEGRAM_URI, {
+            chat_id: chatId,
+            text: responseText
+        })
+        res.send('Done')
+    } catch (e) {
+        console.log(e)
+        res.send(e)
+    }
+})
+
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+})
+function exitHandler(options, exitCode) {
+    if (options.cleanup) console.log('clean');
+    if (exitCode || exitCode === 0) console.log(exitCode);
+    if (options.exit) process.exit();
+}
+process.on('exit', exitHandler.bind(null,{cleanup:true}));
